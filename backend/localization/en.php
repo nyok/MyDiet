@@ -11,3 +11,4 @@ define("text__left", "Left");
 define("text__kg", "kg");
 define("text__current_weight", "Current weight");
 define("text__calendar", "Calendar");
+define("text__not_data", "No data yet");

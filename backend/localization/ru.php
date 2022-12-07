@@ -11,3 +11,4 @@ define("text__left", "Осталось");
 define("text__kg", "кг");
 define("text__current_weight", "Текущий вес");
 define("text__calendar", "Календарь");
+define("text__not_data", "Данных еще нет");

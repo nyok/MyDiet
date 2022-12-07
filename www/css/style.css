@@ -103,6 +103,10 @@ mark {
 	overflow: scroll;
 }
 
+.meal-today {
+	padding: 10px 0;
+}
+
 .meal-table {
 	min-width: 700px;
 	border-collapse: collapse;

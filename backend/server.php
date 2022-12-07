@@ -42,14 +42,13 @@ function page__index() {
         $weight = round(getWeight($today),2);
         echo '<h2>'.text__current_weight.': ' . $weight . ' '.text__kg.'</h2>';
         echo '<h2>'.text__calendar.'</h2>';
-        echo '<ul class="calendar">';
-        echo '<li><a href="'.URL.'/days/'.formatDate($today, 'Y/M/D').'/">'.formatDate($today, 'day').'</a></li>';
-        $days = getCalendarDay();
-        foreach ($days as $day) {
-            echo '<li><a href="'.URL.'/days/'.formatDate($day, 'Y/M/D').'/">'.formatDate($day, 'day').'</a></li>';
-        }
-        echo '</ul>';
-
+        if(!existTodayMeal()) {
+            echo '<div class="meal-today">
+            <p><a href="'.URL.'/days/'.formatDate($today, 'Y/M/D').'/">'.formatDate($today, 'day').'</a></p>
+            <p>'.text__not_data.'</p>
+            </div>';
+        };
+        block__results_week();
     echo '</div>';
 }
 
@@ -58,8 +57,7 @@ function page__days_day($id) {
     $day = $id;
     $weight = round(getWeight($day),2);
     $meal = getInfo($day);
-    $results = getInfoResults($day);
-
+    $results = getInfoResults($day, null)[0];
     echo '<div class="page indent">';
     echo '<h1>'.formatDate($day, 'day').'</h1>';
     echo '<h2>'.$weight.' '.text__kg.'</h2>';
@@ -138,6 +136,49 @@ function page__days_day($id) {
     echo '</div>';
 }
 
+/* Block results week */
+function block__results_week() {
+    $day = date("Y/m/d");
+    $week = date("Y/m/d", strtotime($day."-7 day"));
+    $results = getInfoResults($week, $day);
+    echo '<div class="meal">';
+        echo '<table class="meal-table">';
+            echo '<tr>';
+                echo '<th class="l"></th>';
+                echo '<th class="r" width="86">'.text__proteins.'</th>';
+                echo '<th class="r" width="86">'.text__fats.'</th>';
+                echo '<th class="r" width="86">'.text__carbohydrates.'</th>';
+                echo '<th class="r" width="86">'.text__calories.'</th>';
+            echo '</tr>';
+
+            foreach ($results as $r) {
+                $href = $r['href'];
+                $max_proteins = $r['max_proteins'];
+                $max_fats = $r['max_fats'];
+                $max_carbohydrates = $r['max_carbohydrates'];
+                $max_calories = $r['max_calories'];
+
+                $total_proteins = $r['total_proteins'];
+                $total_fats = $r['total_fats'];
+                $total_carbohydrates = $r['total_carbohydrates'];
+                $total_calories = $r['total_calories'];
+
+                $balance_proteins = $r['balance_proteins'];
+                $balance_fats = $r['balance_fats'];
+                $balance_carbohydrates = $r['balance_carbohydrates'];
+                $balance_calories = $r['balance_calories'];
+
+                echo '<tr class="">';
+                    echo '<td><a href="'.$href.'">'.$r['date'].'</a></td>';
+                    echo '<td class="r">'.printGraph($max_proteins, $total_proteins, $balance_proteins).'</td>';
+                    echo '<td class="r">'.printGraph($max_fats, $total_fats, $balance_fats).'</td>';
+                    echo '<td class="r">'.printGraph($max_carbohydrates, $total_carbohydrates, $balance_carbohydrates).'</td>';
+                    echo '<td class="r">'.printGraph($max_calories, $total_calories, $balance_calories).'</td>';
+                echo '</tr>';
+            }
+        echo '</table>';
+    echo '</div>';
+}
 /* Scripts */
 
 /* Random food emoji */
@@ -267,55 +308,12 @@ function getInfo($day) {
 }
 
 /* Getting results info for day */
-function getInfoResults($day) {
-    $query = 'SELECT * FROM `results` WHERE `results`.`date` = DATE("'.$day.'")';
-    $mysqli = mysqli_connect(DBSERVER, DBUSERNAME, DBPASSWORD, DBNAME);
-    mysqli_set_charset($mysqli, 'utf8mb4');
-    $result = mysqli_query($mysqli, $query);
-    $arr = array();
-    if(!$result || mysqli_num_rows($result) == 0) { /*return NULL;*/ }
-    else {
-        $r = $result->fetch_array(MYSQLI_ASSOC);
-        $id = $r['id'];
-        $max_proteins = formatNum($r['max_proteins'],2);
-        $max_fats = formatNum($r['max_fats'],2);
-        $max_carbohydrates = formatNum($r['max_carbohydrates'],2);
-        $max_calories = formatNum($r['max_calories'],0);
-        $total_proteins = formatNum($r['total_proteins'],2);
-        $total_fats = formatNum($r['total_fats'],2);
-        $total_carbohydrates = formatNum($r['total_carbohydrates'],2);
-        $total_calories = formatNum($r['total_calories'],0);
-        $balance_proteins = formatNum($r['balance_proteins'],2);
-        $balance_fats = formatNum($r['balance_fats'],2);
-        $balance_carbohydrates = formatNum($r['balance_carbohydrates'],2);
-        $balance_calories = formatNum($r['balance_calories'],0);
-        if($id) {
-            $arr = array(
-                'max_proteins' => $max_proteins,
-                'max_fats' => $max_fats,
-                'max_carbohydrates' => $max_carbohydrates,
-                'max_calories' => $max_calories,
-                'total_proteins' => $total_proteins,
-                'total_fats' => $total_fats,
-                'total_carbohydrates' => $total_carbohydrates,
-                'total_calories' => $total_calories,
-                'balance_proteins' => $balance_proteins,
-                'balance_fats' => $balance_fats,
-                'balance_carbohydrates' => $balance_carbohydrates,
-                'balance_calories' => $balance_calories
-                );
-        }
+function getInfoResults($start_day, $end_day) {
+    if($end_day) {
+        $query = 'SELECT * FROM `results` WHERE `results`.`date` >= DATE("'.$start_day.'") AND `results`.`date` <= DATE("'.$end_day.'") ORDER BY `results`.`date` DESC';
+    } else {
+        $query = 'SELECT * FROM `results` WHERE `results`.`date` = DATE("'.$start_day.'")';
     }
-    return $arr;
-}
-
-/* Getting a list of diet days */
-function getCalendarDay() {
-    $query =
-    'SELECT DATE(`meal`.`datetime`) as `date` FROM `meal`
-    WHERE DATE(`meal`.`datetime`) != DATE(NOW())
-    GROUP BY DATE(`meal`.`datetime`)
-    ORDER BY DATE(`meal`.`datetime`) DESC';
     $mysqli = mysqli_connect(DBSERVER, DBUSERNAME, DBPASSWORD, DBNAME);
     mysqli_set_charset($mysqli, 'utf8mb4');
     $result = mysqli_query($mysqli, $query);
@@ -323,11 +321,50 @@ function getCalendarDay() {
     if(!$result || mysqli_num_rows($result) == 0) { /*return NULL;*/ }
     else {
         while($r = $result->fetch_array(MYSQLI_ASSOC)) {
-            $date = $r['date'];
-            if($date) {
-                $arr[] = $date;
+            $id = $r['id'];
+            $date = formatDate($r['date'], 'day');
+            $href = URL.'/days/'.formatDate($r['date'], 'Y/M/D').'/';
+            $max_proteins = formatNum($r['max_proteins'],2);
+            $max_fats = formatNum($r['max_fats'],2);
+            $max_carbohydrates = formatNum($r['max_carbohydrates'],2);
+            $max_calories = formatNum($r['max_calories'],0);
+            $total_proteins = formatNum($r['total_proteins'],2);
+            $total_fats = formatNum($r['total_fats'],2);
+            $total_carbohydrates = formatNum($r['total_carbohydrates'],2);
+            $total_calories = formatNum($r['total_calories'],0);
+            $balance_proteins = formatNum($r['balance_proteins'],2);
+            $balance_fats = formatNum($r['balance_fats'],2);
+            $balance_carbohydrates = formatNum($r['balance_carbohydrates'],2);
+            $balance_calories = formatNum($r['balance_calories'],0);
+            if($id) {
+                $arr[] = array(
+                    'date' => $date,
+                    'href' => $href,
+                    'max_proteins' => $max_proteins,
+                    'max_fats' => $max_fats,
+                    'max_carbohydrates' => $max_carbohydrates,
+                    'max_calories' => $max_calories,
+                    'total_proteins' => $total_proteins,
+                    'total_fats' => $total_fats,
+                    'total_carbohydrates' => $total_carbohydrates,
+                    'total_calories' => $total_calories,
+                    'balance_proteins' => $balance_proteins,
+                    'balance_fats' => $balance_fats,
+                    'balance_carbohydrates' => $balance_carbohydrates,
+                    'balance_calories' => $balance_calories
+                    );
             }
         }
     }
     return $arr;
+}
+
+/* Checking a record exists in a table "Meal" today */
+function existTodayMeal() {
+    $query = 'SELECT DATE(`meal`.`datetime`) as `date` FROM `meal` WHERE DATE(`meal`.`datetime`) = DATE(NOW()) LIMIT 1';
+    $mysqli = mysqli_connect(DBSERVER, DBUSERNAME, DBPASSWORD, DBNAME);
+    mysqli_set_charset($mysqli, 'utf8mb4');
+    $result = mysqli_query($mysqli, $query);
+    $arr = array();
+    if(!$result || mysqli_num_rows($result) == 0) { return false; } else { return true; }
 }
